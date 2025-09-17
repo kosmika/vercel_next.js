@@ -2,6 +2,9 @@
 
 import type { TurbopackResult } from './types'
 
+// Minimal manual declaration for TransformOutput used by minify APIs
+export type TransformOutput = any
+
 export type TurboTasks = { readonly __tag: unique symbol }
 export type ExternalEndpoint = { readonly __tag: unique symbol }
 export type NextTurboTasks = { readonly __tag: unique symbol }
@@ -33,12 +36,6 @@ export declare class ExternalObject<T> {
     readonly '': unique symbol
     [K: symbol]: T
   }
-}
-export interface TransformOutput {
-  code: string
-  map?: string
-  output?: string
-  diagnostics: Array<string>
 }
 export declare function mdxCompile(
   value: string,

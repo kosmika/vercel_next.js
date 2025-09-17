@@ -224,7 +224,9 @@ export interface Project {
     appDirOnly: boolean
   ): Promise<TurbopackResult<RawEntrypoints | {}>>
 
-  entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<RawEntrypoints>>
+  entrypointsSubscribe(): AsyncIterableIterator<
+    TurbopackResult<RawEntrypoints | {}>
+  >
 
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
 

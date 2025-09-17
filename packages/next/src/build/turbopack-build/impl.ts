@@ -1,10 +1,6 @@
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import {
-  formatIssue,
-  isPersistentCachingEnabled,
-  isRelevantWarning,
-} from '../../shared/lib/turbopack/utils'
+import { isPersistentCachingEnabled } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, loadBindings } from '../swc'
 import {
@@ -20,7 +16,7 @@ import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers } from '../utils'
+import { getSupportedBrowsers, printBuildErrors } from '../utils'
 import { normalizePath } from '../../lib/normalize-path'
 
 export async function turbopackBuild(): Promise<{
@@ -115,42 +111,13 @@ export async function turbopackBuild(): Promise<{
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
+    printBuildErrors(entrypoints)
 
     const manifestLoader = new TurbopackManifestLoader({
       buildId,
       distDir,
       encryptionKey,
     })
-
-    const topLevelErrors = []
-    const topLevelWarnings = []
-    for (const issue of entrypoints.issues) {
-      if (
-        issue.severity === 'bug' ||
-        issue.severity === 'error' ||
-        issue.severity === 'fatal'
-      ) {
-        topLevelErrors.push(formatIssue(issue))
-      } else if (isRelevantWarning(issue)) {
-        topLevelWarnings.push(formatIssue(issue))
-      }
-    }
-
-    if (topLevelWarnings.length > 0) {
-      console.warn(
-        `Turbopack build encountered ${
-          topLevelWarnings.length
-        } warnings:\n${topLevelWarnings.join('\n')}`
-      )
-    }
-
-    if (topLevelErrors.length > 0) {
-      throw new Error(
-        `Turbopack build failed with ${
-          topLevelErrors.length
-        } errors:\n${topLevelErrors.join('\n')}`
-      )
-    }
 
     if (!('routes' in entrypoints)) {
       // This should never ever happen, there should be an error issue, or the bindings call should

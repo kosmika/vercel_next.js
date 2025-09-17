@@ -1,12 +1,13 @@
 use std::{collections::BTreeMap, sync::LazyLock};
 
-use anyhow::{Context, Result};
+use anyhow::{Result, bail};
 use either::Either;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
-use turbo_tasks_fs::{FileSystem, FileSystemPath};
+use turbo_tasks_fs::{FileSystem, FileSystemPath, to_sys_path};
 use turbopack_core::{
+    issue::{Issue, IssueExt, IssueStage, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
         AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, SubpathValue,
@@ -1233,19 +1234,73 @@ async fn insert_next_shared_aliases(
     Ok(())
 }
 
+#[turbo_tasks::value(shared)]
+struct MissingNextFolderIssue {
+    path: FileSystemPath,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for MissingNextFolderIssue {
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.path.clone().cell()
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Resolve.into()
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        let system_path = match to_sys_path(self.path.clone()).await? {
+            Some(path) => path.to_str().unwrap_or("{unknown}").to_string(),
+            _ => "{unknown}".to_string(),
+        };
+
+        Ok(StyledString::Stack(vec![
+            StyledString::Text(
+                "Warning: Next.js inferred your workspace root, but it may not be correct.".into(),
+            ),
+            StyledString::Text(format!(
+                "We couldn't find the Next.js package (next/package.json) from the project \
+                 directory: {system_path}"
+            ).into()),
+            StyledString::Text(
+                " To fix this, set `turbopack.root` in your Next.js config, or ensure the Next.js \
+                 package is resolvable from this directory."
+                    .into(),
+            ),
+            StyledString::Text(
+                "Note: For security and performance reasons, files outside of the project directory will not be compiled."
+                    .into(),
+            ),
+            StyledString::Text("See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.".into())
+        ])
+        .cell())
+    }
+}
+
 #[turbo_tasks::function]
 pub async fn get_next_package(context_directory: FileSystemPath) -> Result<Vc<FileSystemPath>> {
     let root = context_directory.root().owned().await?;
     let result = resolve(
-        context_directory,
+        context_directory.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("next/package.json"))),
         node_cjs_resolve_options(root),
     );
-    let source = result
-        .first_source()
-        .await?
-        .context("Next.js package not found")?;
+    let source = match *result.first_source().await? {
+        Some(s) => s,
+        None => {
+            MissingNextFolderIssue {
+                path: context_directory,
+            }
+            .resolved_cell()
+            .emit();
+            bail!("get_next_package could not resolve next");
+        }
+    };
     Ok(source.ident().path().await?.parent().cell())
 }
 
