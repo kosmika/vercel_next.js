@@ -818,10 +818,5 @@
   "817": "`cacheLifeProfiles` should always be provided.",
   "818": "`cacheLife()` can only be called inside a \"use cache\" function.",
   "819": "`cacheTag()` can only be called inside a \"use cache\" function.",
-  "820": "`cacheLife()` can only be called during App Router rendering at the moment.",
-  "821": "params are being enumerated. \\`params\\` should be unwrapped with \\`React.use()\\` before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-  "822": "A param property was accessed directly with %s. \\`params\\` is now a Promise and should be unwrapped with \\`React.use()\\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \\`params\\` with \\`React.use()\\`.",
-  "823": "A searchParam property was accessed directly with %s. \\`searchParams\\` should be unwrapped with \\`React.use()\\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-  "824": "The keys of \\`searchParams\\` were accessed directly. \\`searchParams\\` should be unwrapped with \\`React.use()\\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-  "825": "params are being enumerated incompletely missing these properties: %s. \\`params\\` should be unwrapped with \\`React.use()\\` before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis"
+  "820": "`cacheLife()` can only be called during App Router rendering at the moment."
 }
