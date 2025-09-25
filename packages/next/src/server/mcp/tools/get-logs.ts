@@ -7,6 +7,10 @@
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
 import { readFile, stat } from 'fs/promises'
 import { join } from 'path'
+import { z } from 'next/dist/compiled/zod'
+
+// Display 30 lines of logs by default
+const MAX_LINES = 30
 
 export function registerGetLogsTool(server: McpServer, distDir: string) {
   server.registerTool(
@@ -14,11 +18,24 @@ export function registerGetLogsTool(server: McpServer, distDir: string) {
     {
       description:
         'Get the development logs from the Next.js log file. Returns browser console logs and other development information.',
-      inputSchema: {},
+      inputSchema: {
+        lines: z
+          .number()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe('Number of lines to return (default: 30)'),
+        offset: z
+          .number()
+          .min(0)
+          .optional()
+          .describe(
+            'Number of lines to skip from the end (default: 0, meaning start from the last lines)'
+          ),
+      },
     },
-    async (_request) => {
+    async (request) => {
       try {
-        const lines = 100 // Default to 100 lines, can be made configurable in the future
         const logFilePath = join(distDir, 'logs', 'next-development.log')
 
         // Check if the log file exists
@@ -52,30 +69,39 @@ export function registerGetLogsTool(server: McpServer, distDir: string) {
           }
         }
 
-        // Split into lines and get the last N lines
+        // Parse request parameters
+        const lines = request.lines || MAX_LINES
+        const offset = request.offset || 0
+
+        // Split into lines and filter out empty lines
         const allLines = logContent.split('\n').filter((line) => line.trim())
-        const lastLines = allLines.slice(-lines)
-
-        if (lastLines.length === 0) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: 'No log entries found in the file.',
-              },
-            ],
-          }
-        }
-
-        const output = lastLines.join('\n')
         const totalLines = allLines.length
-        const shownLines = lastLines.length
+
+        // Calculate the slice range
+        // offset=0, lines=10 means: get last 10 lines (slice(-10))
+        // offset=10, lines=10 means: get lines 10-20 from the end (slice(-20, -10))
+        const startIndex = Math.max(0, totalLines - offset - lines)
+        const endIndex = totalLines - offset
+        const selectedLines = allLines.slice(startIndex, endIndex)
+
+        const output = selectedLines.join('\n')
+        const shownLines = selectedLines.length
+
+        // Generate descriptive text based on the parameters
+        let description: string
+        if (offset === 0) {
+          description = `Showing last ${shownLines} of ${totalLines} log entries`
+        } else {
+          const startLineNum = startIndex + 1
+          const endLineNum = endIndex
+          description = `Showing lines ${startLineNum}-${endLineNum} of ${totalLines} log entries (offset: ${offset}, count: ${lines})`
+        }
 
         return {
           content: [
             {
               type: 'text',
-              text: `Showing last ${shownLines} of ${totalLines} log entries:\n\n${output}`,
+              text: `${description}:\n\n${output}`,
             },
           ],
         }

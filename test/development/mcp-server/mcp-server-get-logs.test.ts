@@ -3,7 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('log-file MCP integration', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'log-file-app'),
     skipDeployment: true,
   })
@@ -36,7 +36,10 @@ describe('log-file MCP integration', () => {
     )
   }
 
-  async function callGetLogs(id: string) {
+  async function callGetLogs(
+    id: string,
+    args?: { lines?: number; offset?: number }
+  ) {
     const response = await fetch(`${next.url}/_next/mcp`, {
       method: 'POST',
       headers: {
@@ -47,7 +50,7 @@ describe('log-file MCP integration', () => {
         jsonrpc: '2.0',
         id,
         method: 'tools/call',
-        params: { name: 'get_logs', arguments: {} },
+        params: { name: 'get_logs', arguments: args || {} },
       }),
     })
 
@@ -58,11 +61,6 @@ describe('log-file MCP integration', () => {
   }
 
   it('should retrieve logs via MCP get_logs tool', async () => {
-    if (!isNextDev) {
-      // MCP server is only available in dev mode
-      return
-    }
-
     // Generate some logs by visiting pages that create log entries
     await next.browser('/server')
     await next.browser('/client')
@@ -85,25 +83,22 @@ describe('log-file MCP integration', () => {
 
     const normalizedLogs = normalizeLogContent(logs)
 
-    // Should contain some log entries
-    expect(normalizedLogs).toMatch(/Showing last \d+ of \d+ log entries/)
-    expect(normalizedLogs).toContain('[xx:xx:xx.xxx]')
+    // Use inline snapshot to capture the actual log content
+    expect(normalizedLogs).toMatchInlineSnapshot(`
+      "Showing last 17 of 17 log entries:
 
-    // Should contain logs from the pages we visited
-    expect(normalizedLogs).toContain(
-      'RSC: This is a log message from server component'
-    )
-    expect(normalizedLogs).toContain(
-      'Pages Router SSR: This is a log message from getServerSideProps'
-    )
-    // Note: Client logs may not be captured in the log file in all cases
+      [xx:xx:xx.xxx] Server  LOG     RSC: This is a log message from server component
+      [xx:xx:xx.xxx] Server  ERROR   RSC: This is an error message from server component
+      [xx:xx:xx.xxx] Server  WARN    RSC: This is a warning message from server component
+      [xx:xx:xx.xxx] Server  LOG     Pages Router SSR: This is a log message from getServerSideProps
+      [xx:xx:xx.xxx] Server  ERROR   Pages Router SSR: This is an error message from getServerSideProps
+      [xx:xx:xx.xxx] Server  WARN    Pages Router SSR: This is a warning message from getServerSideProps
+      [xx:xx:xx.xxx] Server  LOG     Pages Router isomorphic: This is a log message from render
+      [xx:xx:xx.xxx] Browser LOG     Pages Router isomorphic: This is a log message from render"
+    `)
   })
 
   it('should handle missing log file gracefully via MCP', async () => {
-    if (!isNextDev) {
-      return
-    }
-
     // This test should run in a clean state, but since other tests may have run first,
     // we'll just verify the MCP tool responds correctly
     const logs = await callGetLogs('test-no-logs')
@@ -114,10 +109,6 @@ describe('log-file MCP integration', () => {
   })
 
   it('should return paginated results when many logs exist', async () => {
-    if (!isNextDev) {
-      return
-    }
-
     // Generate logs by visiting multiple pages multiple times
     for (let i = 0; i < 5; i++) {
       await next.browser('/server')
@@ -140,14 +131,75 @@ describe('log-file MCP integration', () => {
         'Log file is empty. No logs have been recorded yet.'
       )
       expect(logs).not.toContain('Log file not found at')
-    }, 3 * 1000)
+    })
 
     const normalizedLogs = normalizeLogContent(logs)
 
-    // Should show pagination info
-    expect(normalizedLogs).toMatch(/Showing last \d+ of \d+ log entries/)
+    // Use inline snapshot to capture pagination behavior
+    // Filtered out the noise logs, the actual lines are 50
+    expect(normalizedLogs).toMatchInlineSnapshot(`
+     "Showing last 30 of 72 log entries:
 
-    // Should contain some of the expected log content
-    expect(normalizedLogs).toContain('[xx:xx:xx.xxx]')
+     [xx:xx:xx.xxx] Server  LOG     Pages Router SSR: This is a log message from getServerSideProps
+     [xx:xx:xx.xxx] Server  ERROR   Pages Router SSR: This is an error message from getServerSideProps
+     [xx:xx:xx.xxx] Server  WARN    Pages Router SSR: This is a warning message from getServerSideProps
+     [xx:xx:xx.xxx] Server  LOG     Pages Router isomorphic: This is a log message from render
+     [xx:xx:xx.xxx] Browser LOG     Pages Router isomorphic: This is a log message from render
+     [xx:xx:xx.xxx] Server  LOG     RSC: This is a log message from server component
+     [xx:xx:xx.xxx] Server  ERROR   RSC: This is an error message from server component
+     [xx:xx:xx.xxx] Server  WARN    RSC: This is a warning message from server component
+     [xx:xx:xx.xxx] Server  LOG     Pages Router SSR: This is a log message from getServerSideProps
+     [xx:xx:xx.xxx] Server  ERROR   Pages Router SSR: This is an error message from getServerSideProps
+     [xx:xx:xx.xxx] Server  WARN    Pages Router SSR: This is a warning message from getServerSideProps
+     [xx:xx:xx.xxx] Server  LOG     Pages Router isomorphic: This is a log message from render
+     [xx:xx:xx.xxx] Browser LOG     Pages Router isomorphic: This is a log message from render
+     [xx:xx:xx.xxx] Server  LOG     RSC: This is a log message from server component
+     [xx:xx:xx.xxx] Server  ERROR   RSC: This is an error message from server component
+     [xx:xx:xx.xxx] Server  WARN    RSC: This is a warning message from server component
+     [xx:xx:xx.xxx] Server  LOG     Pages Router SSR: This is a log message from getServerSideProps
+     [xx:xx:xx.xxx] Server  ERROR   Pages Router SSR: This is an error message from getServerSideProps
+     [xx:xx:xx.xxx] Server  WARN    Pages Router SSR: This is a warning message from getServerSideProps
+     [xx:xx:xx.xxx] Server  LOG     Pages Router isomorphic: This is a log message from render
+     [xx:xx:xx.xxx] Browser LOG     Pages Router isomorphic: This is a log message from render"
+    `)
+  })
+
+  it('should support custom offset and lines parameters', async () => {
+    // Test with offset=10, lines=5 (should get lines 10-15 from the end)
+    const logsWithOffset = await callGetLogs('test-offset', {
+      offset: 10,
+      lines: 5,
+    })
+    const normalizedLogsWithOffset = normalizeLogContent(logsWithOffset)
+
+    expect(normalizedLogsWithOffset).toMatch(
+      /Showing lines \d+-\d+ of \d+ log entries \(offset: 10, count: 5\)/
+    )
+
+    // Test with just lines=10 (should get last 10 lines)
+    const logsWithLines = await callGetLogs('test-lines', { lines: 5 })
+    const normalizedLogsWithLines = normalizeLogContent(logsWithLines)
+
+    // The logs are 4 because the unstable noisy logs are filtered out
+    expect(normalizedLogsWithLines).toMatchInlineSnapshot(`
+     "Showing last 5 of 72 log entries:
+
+     [xx:xx:xx.xxx] Server  ERROR   Pages Router SSR: This is an error message from getServerSideProps
+     [xx:xx:xx.xxx] Server  WARN    Pages Router SSR: This is a warning message from getServerSideProps
+     [xx:xx:xx.xxx] Server  LOG     Pages Router isomorphic: This is a log message from render
+     [xx:xx:xx.xxx] Browser LOG     Pages Router isomorphic: This is a log message from render"
+    `)
+
+    // Test with offset=0, lines=3 (should get last 3 lines)
+    const logsWithBoth = await callGetLogs('test-both', { offset: 0, lines: 3 })
+    const normalizedLogsWithBoth = normalizeLogContent(logsWithBoth)
+
+    // The logs are 2 because the unstable noisy logs are filtered out
+    expect(normalizedLogsWithBoth).toMatchInlineSnapshot(`
+     "Showing last 3 of 72 log entries:
+
+     [xx:xx:xx.xxx] Server  LOG     Pages Router isomorphic: This is a log message from render
+     [xx:xx:xx.xxx] Browser LOG     Pages Router isomorphic: This is a log message from render"
+    `)
   })
 })
