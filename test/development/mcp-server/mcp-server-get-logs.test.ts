@@ -80,9 +80,6 @@ describe('log-file MCP integration', () => {
     await next.browser('/client')
     await next.browser('/pages-router-page')
 
-    // Wait for logs to be written
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
     let logs: string = ''
     await retry(async () => {
       const sessionId = 'test-mcp-logs-' + Date.now()
@@ -93,7 +90,7 @@ describe('log-file MCP integration', () => {
         'Log file is empty. No logs have been recorded yet.'
       )
       expect(logs).not.toContain('Log file not found at')
-    }, 3 * 1000)
+    }, 10 * 1000)
 
     const normalizedLogs = filterOutPaginationHeaders(normalizeLogContent(logs))
 
@@ -130,9 +127,6 @@ describe('log-file MCP integration', () => {
       await new Promise((resolve) => setTimeout(resolve, 100))
     }
 
-    // Wait for logs to be written
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
     let logs: string = ''
     await retry(async () => {
       const sessionId = 'test-pagination-' + Date.now()
@@ -143,7 +137,7 @@ describe('log-file MCP integration', () => {
         'Log file is empty. No logs have been recorded yet.'
       )
       expect(logs).not.toContain('Log file not found at')
-    })
+    }, 10 * 1000)
 
     const normalizedLogs = filterOutPaginationHeaders(normalizeLogContent(logs))
 
