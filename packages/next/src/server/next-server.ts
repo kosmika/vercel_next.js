@@ -1451,7 +1451,12 @@ export default class NextNodeServer extends BaseServer<
         return {
           match: getMiddlewareRouteMatcher(
             middlewareModule.config?.matchers || [
-              { regexp: '.*', originalSource: '/:path*' },
+              {
+                regexp: this.nextConfig.skipNextInternalsFromMiddleware === false
+                  ? '.*'
+                  : '^(?!/_next).*$',
+                originalSource: '/:path*'
+              },
             ]
           ),
           page: '/',

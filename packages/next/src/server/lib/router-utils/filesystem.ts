@@ -314,7 +314,13 @@ export async function setupFsCheck(opts: {
     } else if (functionsConfigManifest?.functions['/_middleware']) {
       middlewareMatcher = getMiddlewareRouteMatcher(
         functionsConfigManifest.functions['/_middleware'].matchers ?? [
-          { regexp: '.*', originalSource: '/:path*' },
+          {
+            regexp:
+              opts.config.skipNextInternalsFromMiddleware === false
+                ? '.*'
+                : '^(?!/_next).*$',
+            originalSource: '/:path*',
+          },
         ]
       )
     }

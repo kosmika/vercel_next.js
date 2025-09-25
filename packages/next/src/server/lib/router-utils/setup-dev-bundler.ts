@@ -472,7 +472,13 @@ async function startWatcher(
             serverFields.actualMiddlewareFile
           )
           middlewareMatchers = staticInfo.middleware?.matchers || [
-            { regexp: '^/.*$', originalSource: '/:path*' },
+            {
+              regexp:
+                nextConfig.skipNextInternalsFromMiddleware === false
+                  ? '^/.*$'
+                  : '^(?!/_next).*$',
+              originalSource: '/:path*',
+            },
           ]
           continue
         }

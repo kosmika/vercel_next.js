@@ -2600,7 +2600,10 @@ export default async function build(
             runtime: staticInfo.runtime,
             matchers: staticInfo.middleware?.matchers ?? [
               {
-                regexp: '^.*$',
+                regexp:
+                  config.skipNextInternalsFromMiddleware === false
+                    ? '^.*$'
+                    : '^(?!/_next).*$',
                 originalSource: '/:path*',
               },
             ],

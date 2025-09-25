@@ -963,6 +963,10 @@ export default async function getBaseWebpackConfig(
           ['transpilePackages', !!config.transpilePackages],
           ['skipMiddlewareUrlNormalize', !!config.skipMiddlewareUrlNormalize],
           ['skipTrailingSlashRedirect', !!config.skipTrailingSlashRedirect],
+          [
+            'skipNextInternalsFromMiddleware',
+            !!config.skipNextInternalsFromMiddleware,
+          ],
           ['modularizeImports', !!config.modularizeImports],
           // If esmExternals is not same as default value, it represents customized usage
           ['esmExternals', config.experimental.esmExternals !== true],

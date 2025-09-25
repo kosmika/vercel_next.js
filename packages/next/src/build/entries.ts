@@ -899,7 +899,13 @@ export async function createEntrypoints(
 
       if (isMiddlewareFile(page)) {
         middlewareMatchers = staticInfo.middleware?.matchers ?? [
-          { regexp: '.*', originalSource: '/:path*' },
+          {
+            regexp:
+              config.skipNextInternalsFromMiddleware === false
+                ? '.*'
+                : '^(?!/_next).*$',
+            originalSource: '/:path*',
+          },
         ]
       }
 
@@ -956,7 +962,9 @@ export async function createEntrypoints(
               isDev: false,
               isServerComponent,
               page,
-              middleware: staticInfo?.middleware,
+              middleware: staticInfo?.middleware || {
+                matchers: middlewareMatchers,
+              },
               pagesType,
               preferredRegion: staticInfo.preferredRegion,
               middlewareConfig: staticInfo.middleware,
@@ -1031,7 +1039,11 @@ export async function createEntrypoints(
               isDev: false,
               isServerComponent,
               page,
-              middleware: staticInfo?.middleware,
+              middleware:
+                staticInfo?.middleware ||
+                (isMiddlewareFile(page)
+                  ? { matchers: middlewareMatchers }
+                  : undefined),
               pagesType,
               appDirLoader,
               preferredRegion: staticInfo.preferredRegion,
