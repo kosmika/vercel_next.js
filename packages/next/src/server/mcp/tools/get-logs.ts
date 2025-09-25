@@ -91,6 +91,8 @@ export function registerGetLogsTool(server: McpServer, distDir: string) {
         let description: string
         if (offset === 0) {
           description = `Showing last ${shownLines} of ${totalLines} log entries`
+        } else if (endIndex <= 0 || shownLines === 0) {
+          description = `No lines available with offset ${offset} (total: ${totalLines} log entries)`
         } else {
           const startLineNum = startIndex + 1
           const endLineNum = endIndex
