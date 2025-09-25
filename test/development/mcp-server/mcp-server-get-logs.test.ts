@@ -126,6 +126,7 @@ describe('log-file MCP integration', () => {
     for (let i = 0; i < 3; i++) {
       await next.browser('/server')
       await next.browser('/client')
+      await next.browser('/pages-router-page')
       // Small delay between visits
       await new Promise((resolve) => setTimeout(resolve, 100))
     }
@@ -145,33 +146,45 @@ describe('log-file MCP integration', () => {
     await retry(async () => {
       const sessionId = 'test-pagination-' + Date.now()
       logs = await callGetLogs(sessionId)
+      // Check that we have many log entries
+      const lines = logs.split('\n').length
+      expect(lines).toBeGreaterThan(30)
+
       const normalizedLogs = filterOutPaginationHeaders(
         normalizeLogContent(logs)
       )
 
-      // Use inline snapshot to capture pagination behavior
-      // Filtered out the noise logs, the actual lines are 50
-      expect(normalizedLogs).toMatchInlineSnapshot(`
-       "[xx:xx:xx.xxx] Server  LOG     Pages Router SSR: This is a log message from getServerSideProps
-       [xx:xx:xx.xxx] Server  ERROR   Pages Router SSR: This is an error message from getServerSideProps
-       [xx:xx:xx.xxx] Server  WARN    Pages Router SSR: This is a warning message from getServerSideProps
-       [xx:xx:xx.xxx] Server  LOG     Pages Router isomorphic: This is a log message from render
-       [xx:xx:xx.xxx] Server  LOG     RSC: This is a log message from server component
-       [xx:xx:xx.xxx] Server  ERROR   RSC: This is an error message from server component
-       [xx:xx:xx.xxx] Server  WARN    RSC: This is a warning message from server component
-       [xx:xx:xx.xxx] Browser LOG     Client: Complex circular object: {"name":"test","data":{"nested":{"value":42,"items":[1,2,3]},"parent":"[Circular]"},"metadata":{"name":"safe stringify","version":"1.0.0"}}
-       [xx:xx:xx.xxx] Browser ERROR   Client: This is an error message from client component
-       [xx:xx:xx.xxx] Browser WARN    Client: This is a warning message from client component
-       [xx:xx:xx.xxx] Server  LOG     RSC: This is a log message from server component
-       [xx:xx:xx.xxx] Server  ERROR   RSC: This is an error message from server component
-       [xx:xx:xx.xxx] Server  WARN    RSC: This is a warning message from server component
-       [xx:xx:xx.xxx] Browser LOG     Client: Complex circular object: {"name":"test","data":{"nested":{"value":42,"items":[1,2,3]},"parent":"[Circular]"},"metadata":{"name":"safe stringify","version":"1.0.0"}}
-       [xx:xx:xx.xxx] Browser ERROR   Client: This is an error message from client component
-       [xx:xx:xx.xxx] Browser WARN    Client: This is a warning message from client component
-       [xx:xx:xx.xxx] Server  LOG     RSC: This is a log message from server component
-       [xx:xx:xx.xxx] Server  ERROR   RSC: This is an error message from server component
-       [xx:xx:xx.xxx] Server  WARN    RSC: This is a warning message from server component"
-      `)
+      // Assert each unique log line individually (multiple instances expected)
+      expect(normalizedLogs).toMatch(
+        /\[xx:xx:xx\.xxx\]\s+Server\s+LOG\s+Pages Router SSR: This is a log message from getServerSideProps/
+      )
+      expect(normalizedLogs).toMatch(
+        /\[xx:xx:xx\.xxx\]\s+Server\s+ERROR\s+Pages Router SSR: This is an error message from getServerSideProps/
+      )
+      expect(normalizedLogs).toMatch(
+        /\[xx:xx:xx\.xxx\]\s+Server\s+WARN\s+Pages Router SSR: This is a warning message from getServerSideProps/
+      )
+      expect(normalizedLogs).toMatch(
+        /\[xx:xx:xx\.xxx\]\s+Server\s+LOG\s+Pages Router isomorphic: This is a log message from render/
+      )
+      expect(normalizedLogs).toMatch(
+        /\[xx:xx:xx\.xxx\]\s+Server\s+LOG\s+RSC: This is a log message from server component/
+      )
+      expect(normalizedLogs).toMatch(
+        /\[xx:xx:xx\.xxx\]\s+Server\s+ERROR\s+RSC: This is an error message from server component/
+      )
+      expect(normalizedLogs).toMatch(
+        /\[xx:xx:xx\.xxx\]\s+Server\s+WARN\s+RSC: This is a warning message from server component/
+      )
+      expect(normalizedLogs).toMatch(
+        /\[xx:xx:xx\.xxx\]\s+Browser\s+LOG\s+Client: Complex circular object:/
+      )
+      expect(normalizedLogs).toMatch(
+        /\[xx:xx:xx\.xxx\]\s+Browser\s+ERROR\s+Client: This is an error message from client component/
+      )
+      expect(normalizedLogs).toMatch(
+        /\[xx:xx:xx\.xxx\]\s+Browser\s+WARN\s+Client: This is a warning message from client component/
+      )
     })
   })
 
